@@ -1,4 +1,3 @@
-
 import asyncio
 import os
 from aiogram import Bot, Dispatcher, types
@@ -122,6 +121,3 @@ try:
     executor.start_polling(dp, skip_updates=True)
 except TerminatedByOtherGetUpdates:
     print("⚠️ Бот уже работает где-то ещё. Завершаем.")
-
-
-
