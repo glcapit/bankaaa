@@ -105,7 +105,7 @@ async def pay(message: Message):
 
 # Асинхронное создание инвойса
 async def create_invoice(user_id: int) -> str:
-    url = "https://pay.crypt.bot/createInvoice"
+    url = "https://pay.crypt.bot/api/createInvoice" 
     headers = {
         "Content-Type": "application/json",
         "Crypto-Pay-API-Token": CRYPTOBOT_TOKEN
@@ -116,7 +116,7 @@ async def create_invoice(user_id: int) -> str:
         "description": f"Пополнение баланса от {user_id}",
         "hidden_message": "Спасибо за оплату!",
         "paid_btn_name": "viewItem",
-        "paid_btn_url": "https://t.me/YourBot",  # Замените на своего
+        "paid_btn_url": "https://t.me/Bankaaa_bot",  
         "payload": str(user_id)
     }
 
