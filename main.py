@@ -107,3 +107,24 @@ async def pay(message: Message):
 if __name__ == "__main__":
     asyncio.get_event_loop().run_until_complete(init_db())
     executor.start_polling(dp, skip_updates=True)
+
+def create_invoice(user_id: int) -> str:
+    url = "https://pay.crypt.bot/createInvoice"
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {CRYPTOBOT_TOKEN}"
+    }
+    data = {
+        "asset": "TON",
+        "amount": "1.5",
+        "currency": "TON",
+        "description": f"Пополнение баланса от {user_id}",
+        "hidden_message": "Спасибо за оплату!",
+        "paid_btn_name": "viewItem",
+        "paid_btn_url": "https://t.me/YourBot",
+        "payload": str(user_id)
+    }
+    response = requests.post(url, headers=headers, json=data)
+    invoice = response.json()
+    print("🔍 Ответ от CryptoBot:", invoice)  # 🔍 Добавим лог
+    return invoice["result"]["pay_url"]
