@@ -115,6 +115,12 @@ async def pay(message: Message):
 
 if __name__ == "__main__":
     asyncio.get_event_loop().run_until_complete(init_db())
+from aiogram.utils.exceptions import TerminatedByOtherGetUpdates
+
+try:
     executor.start_polling(dp, skip_updates=True)
+except TerminatedByOtherGetUpdates:
+    print("⚠️ Бот уже работает где-то ещё. Завершаем.")
+
 
 
