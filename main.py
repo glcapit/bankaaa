@@ -108,7 +108,7 @@ async def create_invoice(user_id: int) -> str:
     url = "https://pay.crypt.bot/api/createInvoice" 
     headers = {
         "Content-Type": "application/json",
-        "Crypto-Pay-API-Token": CRYPTOBOT_TOKEN
+        "Crypto-Pay-API-Token": 374276:AAUwtjaKFaw0lqM8rG1IobOfn74t1bZaQSO
     }
     payload = {
         "asset": "TON",
