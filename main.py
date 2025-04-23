@@ -105,7 +105,7 @@ async def pay(message: Message):
 
 # Асинхронное создание инвойса
 async def create_invoice(user_id: int) -> str:
-    url = "https://pay.crypt.bot/api/v1/invoice/create" 
+    url = "https://pay.crypt.bot/api/v1/invoice/create"  # ✅ Актуальный endpoint
     headers = {
         "Content-Type": "application/json",
         "Crypto-Pay-API-Token": CRYPTOBOT_TOKEN
@@ -116,9 +116,16 @@ async def create_invoice(user_id: int) -> str:
         "description": f"Пополнение баланса от {user_id}",
         "hidden_message": "Спасибо за оплату!",
         "paid_btn_name": "viewItem",
-        "paid_btn_url": "https://t.me/Bankaaa_bot",  
+        "paid_btn_url": "https://t.me/Bankaaa_bot",  # замени на ссылку на своего бота
         "payload": str(user_id)
     }
+
+    async with aiohttp.ClientSession() as session:
+        async with session.post(url, headers=headers, json=payload) as resp:
+            result = await resp.json()
+            if result.get("ok"):
+                return result["result"]["pay_url"]
+            raise Exception(f"CryptoBot error: {result}")
 
     async with aiohttp.ClientSession() as session:
         async with session.post(url, headers=headers, json=payload) as resp:
