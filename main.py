@@ -1,25 +1,25 @@
-import asyncio
 import os
+import asyncio
 import logging
 import aiosqlite
-import aiohttp
 from datetime import datetime
 from aiogram import Bot, Dispatcher, types
 from aiogram.utils import executor
-from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
-from aiogram.utils.exceptions import TerminatedByOtherGetUpdates
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from dotenv import load_dotenv
+from crypto_pay_api import Crypto
 
+# Загрузка токенов
 load_dotenv()
-logging.basicConfig(level=logging.INFO)
-
-API_TOKEN = os.getenv("BOT_TOKEN")
+BOT_TOKEN = os.getenv("BOT_TOKEN")
 CRYPTOBOT_TOKEN = os.getenv("CRYPTOBOT_TOKEN")
 
-bot = Bot(token=API_TOKEN, parse_mode="Markdown")
+# Инициализация
+bot = Bot(token=BOT_TOKEN, parse_mode="Markdown")
 dp = Dispatcher(bot)
+crypto_client = Crypto(token=CRYPTOBOT_TOKEN)
 
-# Инициализация БД
+# Инициализация базы данных
 async def init_db():
     async with aiosqlite.connect("staking.db") as db:
         await db.execute('''
@@ -33,7 +33,7 @@ async def init_db():
 
 # /start
 @dp.message_handler(commands=["start"])
-async def start(message: Message):
+async def start(message: types.Message):
     user_id = message.from_user.id
     async with aiosqlite.connect("staking.db") as db:
         await db.execute("INSERT OR IGNORE INTO users (user_id, last_update) VALUES (?, ?)",
@@ -46,33 +46,36 @@ async def start(message: Message):
         "— Пополнить счёт в TON / USDT\n"
         "— Получать 3% годовых на остаток\n"
         "— Следить за балансом\n\n"
-        "🔒 Все транзакции проходят через @CryptoBot — безопасно и быстро.\n"
-        "📲 Начни с команды /pay чтобы пополнить баланс."
+        "📲 Используй команду /pay для пополнения."
     )
 
-# /deposit
-@dp.message_handler(commands=["deposit"])
-async def deposit(message: Message):
+# /pay
+@dp.message_handler(commands=["pay"])
+async def pay(message: types.Message):
+    user_id = message.from_user.id
+
     try:
-        parts = message.text.split()
-        if len(parts) != 2:
-            raise ValueError("Неверный формат")
+        invoice = crypto_client.create_invoice(
+            asset="TON",
+            amount=1.5,
+            description=f"Пополнение от {user_id}",
+            hidden_message="Спасибо за оплату!",
+            paid_btn_name="viewItem",
+            paid_btn_url="https://t.me/Bankaaa_bot",  
+            payload=str(user_id)
+        )
+        markup = InlineKeyboardMarkup().add(
+            InlineKeyboardButton("💰 Оплатить через CryptoBot", url=invoice['result']['pay_url'])
+        )
+        await message.answer("🔗 Нажмите кнопку для оплаты:", reply_markup=markup)
 
-        amount = float(parts[1])
-        user_id = message.from_user.id
-
-        async with aiosqlite.connect("staking.db") as db:
-            await db.execute("UPDATE users SET balance = balance + ?, last_update = ? WHERE user_id = ?",
-                             (amount, datetime.utcnow().isoformat(), user_id))
-            await db.commit()
-
-        await message.answer(f"✅ Баланс пополнен на {amount:.2f} монет.")
-    except ValueError:
-        await message.answer("❌ Неверный формат. Используй: /deposit 100")
+    except Exception as e:
+        logging.error(f"Ошибка создания инвойса: {e}")
+        await message.answer("❌ Ошибка при создании инвойса. Проверьте токен.")
 
 # /balance
 @dp.message_handler(commands=["balance"])
-async def balance(message: Message):
+async def balance(message: types.Message):
     user_id = message.from_user.id
     async with aiosqlite.connect("staking.db") as db:
         async with db.execute("SELECT balance FROM users WHERE user_id = ?", (user_id,)) as cursor:
@@ -82,62 +85,9 @@ async def balance(message: Message):
             else:
                 await message.answer("❌ Вы ещё не зарегистрированы. Введите /start")
 
-# /pay
-@dp.message_handler(commands=["pay"])
-async def pay(message: Message):
-    user_id = message.from_user.id
-
-    async with aiosqlite.connect("staking.db") as db:
-        async with db.execute("SELECT 1 FROM users WHERE user_id = ?", (user_id,)) as cursor:
-            if not await cursor.fetchone():
-                await message.answer("❌ Вы ещё не зарегистрированы. Введите /start")
-                return
-
-    try:
-        invoice_url = await create_invoice(user_id)
-        btn = InlineKeyboardMarkup().add(
-            InlineKeyboardButton("💰 Оплатить через CryptoBot", url=invoice_url)
-        )
-        await message.answer("🔗 Нажмите кнопку для оплаты:", reply_markup=btn)
-    except Exception as e:
-        logging.error(f"Ошибка при создании инвойса: {e}")
-        await message.answer(f"❌ Ошибка при создании инвойса: {e}")
-
-# Асинхронное создание инвойса
-async def create_invoice(user_id: int) -> str:
-    url = "https://pay.crypt.bot/api/v1/invoice/create"  # ✅ Актуальный endpoint
-    headers = {
-        "Content-Type": "application/json",
-        "Crypto-Pay-API-Token": CRYPTOBOT_TOKEN
-    }
-    payload = {
-        "asset": "TON",
-        "amount": "1.5",
-        "description": f"Пополнение баланса от {user_id}",
-        "hidden_message": "Спасибо за оплату!",
-        "paid_btn_name": "viewItem",
-        "paid_btn_url": "https://t.me/Bankaaa_bot",  # замени на ссылку на своего бота
-        "payload": str(user_id)
-    }
-
-    async with aiohttp.ClientSession() as session:
-        async with session.post(url, headers=headers, json=payload) as resp:
-            result = await resp.json()
-            if result.get("ok"):
-                return result["result"]["pay_url"]
-            raise Exception(f"CryptoBot error: {result}")
-
-    async with aiohttp.ClientSession() as session:
-        async with session.post(url, headers=headers, json=payload) as resp:
-            result = await resp.json()
-            if result.get("ok"):
-                return result["result"]["pay_url"]
-            raise Exception(result.get("error", "Unknown error"))
-
 # Запуск
 if __name__ == "__main__":
-    asyncio.get_event_loop().run_until_complete(init_db())
-    try:
-        executor.start_polling(dp, skip_updates=True)
-    except TerminatedByOtherGetUpdates:
-        logging.warning("⚠️ Бот уже запущен где-то ещё.")
+    logging.basicConfig(level=logging.INFO)
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(init_db())
+    executor.start_polling(dp, skip_updates=True)
