@@ -37,7 +37,7 @@ async def start(message: Message):
                          (user_id, datetime.utcnow().isoformat()))
         await db.commit()
     await message.answer(
-        "👋 Добро пожаловать в *CryptoStakeBot*!"
+        "👋 Добро пожаловать в CryptoStakeBot!"
         "💼 Этот бот позволяет:"
         "— Пополнить счёт в TON / USDT"
         "— Получать 3% годовых на остаток"
