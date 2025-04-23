@@ -35,7 +35,7 @@ async def start(message: Message):
                          (user_id, datetime.utcnow().isoformat()))
         await db.commit()
     await message.answer(
-print("Добро пожаловать в 'CryptoStakeBot!'")
+print("Добро пожаловать в 'CryptoBanka!'")
 
 
 "
